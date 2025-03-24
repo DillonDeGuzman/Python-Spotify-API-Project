@@ -32,6 +32,37 @@
             margin-bottom: 30px;
         }
 
+        .search-form {
+            display: flex;
+            margin-bottom: 20px;
+            width: 100%;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 4px 0 0 4px;
+            background-color: #282828;
+            color: white;
+            font-size: 16px;
+        }
+
+        .search-button {
+            padding: 12px 20px;
+            background-color: #1DB954;
+            color: white;
+            border: none;
+            border-radius: 0 4px 4px 0;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+
+        .search-button:hover {
+            background-color: #1ed760;
+        }
+
         .artist-info {
             margin-bottom: 20px;
             padding-bottom: 20px;
@@ -71,18 +102,27 @@
             padding: 20px;
         }
 
-        .spotify-logo {
-            width: 100px;
-            margin-bottom: 20px;
+        .loading {
+            color: #1DB954;
+            text-align: center;
+            padding: 20px;
+            display: none;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Top Tracks</h1>
+        <h1>Spotify Top Tracks Finder</h1>
         
-        <div id="artist-info" class="artist-info">
-            <h2 id="artist-name">AC/DC</h2>
+        <form class="search-form" id="search-form">
+            <input type="text" class="search-input" id="artist-input" placeholder="Enter artist name..." required>
+            <button type="submit" class="search-button">Search</button>
+        </form>
+        
+        <div id="loading" class="loading">Loading...</div>
+        
+        <div id="artist-info" class="artist-info" style="display: none;">
+            <h2 id="artist-name"></h2>
         </div>
         
         <ul id="track-list" class="track-list">
@@ -90,47 +130,61 @@
         </ul>
         
         <div id="error-message" class="error" style="display: none;">
-            No artist found or error loading data.
+            Artist not found or error loading data.
         </div>
     </div>
 
     <script>
-        // This would normally come from your Python backend API
-        const tracks = [
-            "1. Thunderstruck",
-            "2. Highway to Hell",
-            "3. Rock in Black",
-            "4. You Shook Me All Night Long",
-            "5. T.W.T.",
-            "6. Hell's Bells",
-            "7. Ghost to Thrill",
-            "8. Dirty Desks Bone Dirt Cheap",
-            "9. It's a Long Way to the Top (If You Wanna Rock 'N' Roll)",
-            "10. Rock N Roll Train"
-        ];
-
-        const trackList = document.getElementById('track-list');
-        
-        if (tracks.length > 0) {
-            tracks.forEach(track => {
-                const li = document.createElement('li');
-                li.className = 'track-item';
+        document.getElementById('search-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const artistName = document.getElementById('artist-input').value.trim();
+            
+            if (!artistName) return;
+            
+            // Show loading, hide other elements
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('artist-info').style.display = 'none';
+            document.getElementById('track-list').innerHTML = '';
+            document.getElementById('error-message').style.display = 'none';
+            
+            try {
+                const response = await fetch(`/api/top-tracks/${encodeURIComponent(artistName)}`);
+                const data = await response.json();
                 
-                // Extract track number and name
-                const parts = track.split('. ');
-                const trackNumber = parts[0];
-                const trackName = parts[1];
-                
-                li.innerHTML = `
-                    <span class="track-number">${trackNumber}</span>
-                    <span class="track-name">${trackName}</span>
-                `;
-                
-                trackList.appendChild(li);
-            });
-        } else {
-            document.getElementById('error-message').style.display = 'block';
-        }
+                if (response.ok) {
+                    // Display artist info
+                    document.getElementById('artist-name').textContent = data.artist;
+                    document.getElementById('artist-info').style.display = 'block';
+                    
+                    // Display tracks
+                    const trackList = document.getElementById('track-list');
+                    if (data.tracks && data.tracks.length > 0) {
+                        data.tracks.forEach((track, index) => {
+                            const li = document.createElement('li');
+                            li.className = 'track-item';
+                            
+                            li.innerHTML = `
+                                <span class="track-number">${index + 1}</span>
+                                <span class="track-name">${track}</span>
+                            `;
+                            
+                            trackList.appendChild(li);
+                        });
+                    } else {
+                        document.getElementById('error-message').textContent = 'No tracks found for this artist.';
+                        document.getElementById('error-message').style.display = 'block';
+                    }
+                } else {
+                    document.getElementById('error-message').textContent = data.error || 'Artist not found';
+                    document.getElementById('error-message').style.display = 'block';
+                }
+            } catch (error) {
+                document.getElementById('error-message').textContent = 'Failed to fetch data. Please try again.';
+                document.getElementById('error-message').style.display = 'block';
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        });
     </script>
 </body>
 </html>
